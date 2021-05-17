@@ -69,6 +69,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     g_window_properties->window_handle = hwnd;
 
     win32_init_directx11();
+    // IDXGIOutput* output;
+    // g_swap_chain->GetContainingOutput(&output);
+    // g_swap_chain->SetFullscreenState(true, output);
 
     MSG msg = {};
 
@@ -88,6 +91,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     uint64 delta_cycle_count = 0;
     uint64 curr_cycle_count = 0;
 
+    float color1[4] {1.0f, 0.5f, 0.5f, 1.0f};
+    float color2[4] {0.5f, 1.0f, 0.5f, 1.0f};
+
     while (msg.message != WM_QUIT)
     {
         if (PeekMessageA(&msg, 0, 0, 0, PM_REMOVE))
@@ -97,9 +103,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
         else
         {
-            float color[4] {1.0f, 0.5f, 0.5f, 1.0f};
+            float* color = color1;
+            if(key_down(g_keyboard_key_states, KC_W))
+            {
+                color = color2;
+            }
             g_device_context->ClearRenderTargetView(g_render_target_view, color);
-            g_swap_chain->Present(0, 0);
+            g_swap_chain->Present(1, 0);
 
             // sprintf_s(fps_print_buffer, "FPS: %.5f, CPU-Cycles / Frame: %lld", fps, delta_cycle_count);
             // rh_log_message(fps_print_buffer);

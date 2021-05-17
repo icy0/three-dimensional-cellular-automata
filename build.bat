@@ -2,6 +2,12 @@
 
 set RENDERHUB_PATH=C:\Development\renderhub
 
+@REM echo building renderhub_Debug_x64.lib...
+@REM cd ..\renderhub
+@REM call %RENDERHUB_PATH%\build.bat
+@REM cd ..\three-dimensional-cellular-automata
+@REM echo finished building renderhub_Debug_x64.lib, returning to compiling tdca...
+
 set PROJECT_NAME=tdca
 set CODE_BASE_PATH=%CD%
 set BUILD_PATH=%CODE_BASE_PATH%\output
@@ -10,9 +16,9 @@ set INTERMEDIATES_PATH=%BUILD_PATH%\intermediates
 set SOURCE_PATH=%CODE_BASE_PATH%\source
 
 set INCLUDE_DIRECTORIES=/I %CODE_BASE_PATH%\include\ /I %RENDERHUB_PATH%\include\
-set PREPROCESSOR_DEFINES=/DUNICODE /D_UNICODE /D_WIN32
+set PREPROCESSOR_DEFINES=/DUNICODE /D_UNICODE /D_WIN32 /D_DEBUG
 set COMPILER_OPTIONS=/Fe%BINARIES_PATH%\%PROJECT_NAME%.exe /Fd%INTERMEDIATES_PATH%\ /Fo%BINARIES_PATH%\ /nologo /MT %INCLUDE_DIRECTORIES% /ZI /EHsc /W3 /std:c++17 %PREPROCESSOR_DEFINES%
-set INCLUDED_LIBRARIES=User32.lib Gdi32.lib Shell32.lib msvcrt.lib %RENDERHUB_PATH%\output\Debug_x64_binaries\renderhub_Debug_x64.lib dxguid.lib D3D11.lib DXGI.lib
+set INCLUDED_LIBRARIES=User32.lib Gdi32.lib Shell32.lib msvcrt.lib %RENDERHUB_PATH%\output\binaries\renderhub_Debug_x64.lib dxguid.lib D3D11.lib DXGI.lib vcruntimed.lib ucrtd.lib
 set LINKER_OPTIONS=/link /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrtd.lib /DEBUG
 
 IF NOT DEFINED VC_COMPILER_INITIALIZED (
@@ -34,3 +40,4 @@ IF NOT EXIST %BINARIES_PATH% (
 )
 
 cl %COMPILER_OPTIONS% %SOURCE_PATH%\*.cpp %INCLUDED_LIBRARIES% %LINKER_OPTIONS%
+echo finished building tdca.exe
