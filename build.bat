@@ -14,6 +14,7 @@ set BUILD_PATH=%CODE_BASE_PATH%\output
 set BINARIES_PATH=%BUILD_PATH%\binaries
 set INTERMEDIATES_PATH=%BUILD_PATH%\intermediates
 set SOURCE_PATH=%CODE_BASE_PATH%\source
+set SHADER_PATH=%CODE_BASE_PATH%\shaders
 
 set INCLUDE_DIRECTORIES=/I %CODE_BASE_PATH%\include\ /I %RENDERHUB_PATH%\include\
 set PREPROCESSOR_DEFINES=/DUNICODE /D_UNICODE /D_WIN32 /D_DEBUG
@@ -38,6 +39,9 @@ IF NOT EXIST %INTERMEDIATES_PATH% (
 IF NOT EXIST %BINARIES_PATH% (
 	mkdir %BINARIES_PATH%
 )
+
+fxc /T vs_5_0 /Fd %BINARIES_PATH%\vertex_shader.pdb /Fo %BINARIES_PATH%\vertex_shader.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\vertex.hlsl
+fxc /T ps_5_0 /Fd %BINARIES_PATH%\pixel_shader.pdb /Fo %BINARIES_PATH%\pixel_shader.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\pixel.hlsl
 
 cl %COMPILER_OPTIONS% %SOURCE_PATH%\*.cpp %INCLUDED_LIBRARIES% %LINKER_OPTIONS%
 echo finished building tdca.exe

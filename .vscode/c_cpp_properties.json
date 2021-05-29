@@ -13,7 +13,7 @@
     [
       {
         "name": "Win32",
-        "intelliSenseMode": "msvc-x64", // "windows-msvc-x64"?
+        "intelliSenseMode": "msvc-x64",
         "includePath":
         [
             "${projectIncludePath}",
