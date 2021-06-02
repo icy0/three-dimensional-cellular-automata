@@ -9,6 +9,10 @@ struct constant_buffer
     DirectX::XMFLOAT4X4 model;
     DirectX::XMFLOAT4X4 view;
     DirectX::XMFLOAT4X4 projection;
+    real32 scale_factor;
+    real32 unused1;
+    real32 unused2;
+    real32 unused3;
 };
 
 struct dx_vertex

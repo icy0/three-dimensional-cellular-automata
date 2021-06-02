@@ -38,9 +38,12 @@ struct IDXGIInfoQueue* g_info_queue = nullptr;
 ID3D11Buffer* g_constant_buffer = nullptr;
 ID3D11Buffer* g_vertex_buffer = nullptr;
 ID3D11Buffer* g_index_buffer = nullptr;
+ID3D11Buffer* g_instance_buffer = nullptr;
 ID3D11VertexShader* g_vertex_shader = nullptr;
 ID3D11InputLayout* g_input_layout = nullptr;
 ID3D11PixelShader* g_pixel_shader = nullptr;
+
+uint32 g_instance_count = 0;
 
 void read_shader(const char* filename, char** file_bytes, uint64* file_size_in_bytes)
 {
@@ -70,19 +73,19 @@ void init_cube_data()
 {
     HRESULT result = -1;
     
-    DirectX::XMVECTOR eye = DirectX::XMVectorSet(0.0f, 0.0f, 3.0f, 1.0f);
+    DirectX::XMVECTOR eye = DirectX::XMVectorSet(0.5f, -0.5f, 3.0f, 1.0f);
     DirectX::XMVECTOR focus_point = DirectX::XMVectorSet(0.5f, -0.5f, -0.5f, 1.0f);
     DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
     constant_buffer vertex_shader_constant_buffer = {};
     DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.model, DirectX::XMMatrixIdentity());
 
-    // DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.view, 
-    //     DirectX::XMMatrixLookAtLH({0.0f, 0.0f, 10.0f, 1.0f}, {0.0f, 0.0f, 0.0f, 1.0f}, {0.0f, 1.0f, 0.0f, 1.0f}));
     DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.view, DirectX::XMMatrixLookAtRH(eye, focus_point, up));
 
     DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.projection, 
         DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(70.0f), 16.0f/9.0f, 0.1f, 1000.0f));
+
+    vertex_shader_constant_buffer.scale_factor = 0.1f;
 
     dx_vertex vertices[]
     {
@@ -94,6 +97,20 @@ void init_cube_data()
         {{1, 0, -1}, {0, 1, 0}},        {{1, 0, 0},   {0, 1, 0}},       {{0, 0, -1},  {0, 1, 0}},       {{0, 0, 0},   {0, 1, 0}},   // top face
         {{1, -1, 0}, {0, -1, 0}},       {{1, -1, -1}, {0, -1, 0}},      {{0, -1, 0},  {0, -1, 0}},      {{0, -1, -1}, {0, -1, 0}}   // bottom face
     };
+
+    struct instance_transforms
+    {
+        DirectX::XMVECTOR translation;
+    };
+
+    instance_transforms instances[]
+    {
+        {DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f)},
+        {DirectX::XMVectorSet(1.01f, 0.0f, 0.0f, 1.0f)},
+        {DirectX::XMVectorSet(2.02f, 0.0f, 0.0f, 1.0f)}
+    };
+
+    g_instance_count = ARRAYSIZE(instances);
 
     uint32 indices[]
     {
@@ -114,8 +131,10 @@ void init_cube_data()
     D3D11_BUFFER_DESC constant_buffer_description = {};
     constant_buffer_description.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     constant_buffer_description.ByteWidth = sizeof(constant_buffer);
-    constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    // constant_buffer_description.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+    constant_buffer_description.CPUAccessFlags = 0;
+    // constant_buffer_description.Usage = D3D11_USAGE_DYNAMIC;
+    constant_buffer_description.Usage = D3D11_USAGE_DEFAULT;
     constant_buffer_description.MiscFlags = 0;
     constant_buffer_description.StructureByteStride = 0;
 
@@ -150,6 +169,28 @@ void init_cube_data()
     uint32 stride = sizeof(dx_vertex);
     uint32 offset = 0;
     rh_dx_logging(g_device_context->IASetVertexBuffers(0, 1, &g_vertex_buffer, &stride, &offset));
+
+    D3D11_BUFFER_DESC instance_buffer_description = {};
+    instance_buffer_description.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    instance_buffer_description.ByteWidth = sizeof(instance_transforms) * ARRAYSIZE(instances);
+    instance_buffer_description.CPUAccessFlags = 0;
+    instance_buffer_description.Usage = D3D11_USAGE_IMMUTABLE;
+    instance_buffer_description.MiscFlags = 0;
+    instance_buffer_description.StructureByteStride = sizeof(instance_transforms);
+
+    D3D11_SUBRESOURCE_DATA instance_buffer_subres_data = {};
+    instance_buffer_subres_data.pSysMem = (void*) instances;
+    instance_buffer_subres_data.SysMemPitch = 0;
+    instance_buffer_subres_data.SysMemSlicePitch = 0;
+
+    result = -1;
+    rh_dx_logging(result = g_device->CreateBuffer(&instance_buffer_description, &instance_buffer_subres_data, &g_instance_buffer));
+    rh_assert(SUCCEEDED(result));
+    rh_assert(g_instance_buffer);
+
+    stride = sizeof(instance_transforms);
+    offset = 0;
+    rh_dx_logging(g_device_context->IASetVertexBuffers(1, 1, &g_instance_buffer, &stride, &offset));
 
     D3D11_BUFFER_DESC index_buffer_description = {};
     index_buffer_description.BindFlags = D3D11_BIND_INDEX_BUFFER;
@@ -197,8 +238,17 @@ void init_cube_data()
     input_layout_normal.AlignedByteOffset = offsetof(dx_vertex, normal);
     input_layout_normal.InputSlotClass = D3D11_INPUT_PER_VERTEX_DATA;
     input_layout_normal.InstanceDataStepRate = 0;
+    
+    D3D11_INPUT_ELEMENT_DESC input_layout_instance_position = {};
+    input_layout_instance_position.SemanticName = "POSITION";
+    input_layout_instance_position.SemanticIndex = 1;
+    input_layout_instance_position.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    input_layout_instance_position.InputSlot = 1;
+    input_layout_instance_position.AlignedByteOffset = 0;
+    input_layout_instance_position.InputSlotClass = D3D11_INPUT_PER_INSTANCE_DATA;
+    input_layout_instance_position.InstanceDataStepRate = 1;
 
-    D3D11_INPUT_ELEMENT_DESC layouts[] {input_layout_position, input_layout_normal};
+    D3D11_INPUT_ELEMENT_DESC layouts[] {input_layout_position, input_layout_normal, input_layout_instance_position};
 
     rh_dx_logging(result = g_device->CreateInputLayout(layouts, ARRAYSIZE(layouts), (void*) vertex_shader_bytes, vertex_shader_size_in_bytes, &g_input_layout));
     rh_assert(SUCCEEDED(result));
@@ -282,9 +332,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     uint64 delta_cycle_count = 0;
     uint64 curr_cycle_count = 0;
 
-    float color1[4] {1.0f, 0.5f, 0.5f, 1.0f};
-    float color2[4] {0.5f, 1.0f, 0.5f, 1.0f};
-
     while (msg.message != WM_QUIT)
     {
         if (PeekMessageA(&msg, 0, 0, 0, PM_REMOVE))
@@ -294,17 +341,29 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
         else
         {
-            float* color = color1;
-            if(key_down(g_keyboard_key_states, KC_W))
-            {
-                color = color2;
-            }
-
-            rh_dx_logging(g_device_context->ClearRenderTargetView(g_render_target_view, color));
+            float clear_color[] {0.2f, 0.2f, 0.2f, 1.0f};
+            rh_dx_logging(g_device_context->ClearRenderTargetView(g_render_target_view, clear_color));
             rh_dx_logging(g_device_context->ClearDepthStencilView(g_depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0));
 
-            rh_dx_logging(g_device_context->DrawIndexed(36, 0, 0));
-            
+            constant_buffer vertex_shader_constant_buffer = {};
+            DirectX::XMVECTOR eye = DirectX::XMVectorSet(0.5f, -0.5f, 3.0f, 1.0f);
+            DirectX::XMVECTOR focus_point = DirectX::XMVectorSet(0.5f, -0.5f, -0.5f, 1.0f);
+            DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+            DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.model, DirectX::XMMatrixIdentity());
+            DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.view, DirectX::XMMatrixLookAtRH(eye, focus_point, up));
+            DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.projection, DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(90.0f), 16.0f/9.0f, 0.1f, 1000.0f));
+            vertex_shader_constant_buffer.scale_factor = 0.1f;
+
+            // static float angle = 0.0f;
+            // angle += 30.0f * (delta_time.QuadPart / 1'000'000.0f);
+            // DirectX::XMVECTOR rotation_axis = DirectX::XMVectorSet(1, 0, 0, 0);
+
+            // DirectX::XMStoreFloat4x4(&vertex_shader_constant_buffer.model, DirectX::XMMatrixRotationAxis(rotation_axis, DirectX::XMConvertToRadians(angle)));
+
+            rh_dx_logging(g_device_context->UpdateSubresource(g_constant_buffer, 0, nullptr, &vertex_shader_constant_buffer, 0, 0));
+
+            rh_dx_logging(g_device_context->DrawIndexedInstanced(36, g_instance_count, 0, 0, 0));
+
             rh_dx_logging(g_swap_chain->Present(0, 0));
 
             curr_cycle_count = __rdtsc();
