@@ -40,8 +40,11 @@ IF NOT EXIST %BINARIES_PATH% (
 	mkdir %BINARIES_PATH%
 )
 
-fxc /T vs_5_0 /Fd %BINARIES_PATH%\vertex_shader.pdb /Fo %BINARIES_PATH%\vertex_shader.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\vertex.hlsl
-fxc /T ps_5_0 /Fd %BINARIES_PATH%\pixel_shader.pdb /Fo %BINARIES_PATH%\pixel_shader.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\pixel.hlsl
+fxc /T vs_5_0 /Fd %BINARIES_PATH%\vertex_shader_lifespace.pdb /Fo %BINARIES_PATH%\vertex_shader_lifespace.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\vertex_lifespace.hlsl
+fxc /T ps_5_0 /Fd %BINARIES_PATH%\pixel_shader_lifespace.pdb /Fo %BINARIES_PATH%\pixel_shader_lifespace.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\pixel_lifespace.hlsl
+
+fxc /T vs_5_0 /Fd %BINARIES_PATH%\vertex_shader_voxel.pdb /Fo %BINARIES_PATH%\vertex_shader_voxel.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\vertex_voxel.hlsl
+fxc /T ps_5_0 /Fd %BINARIES_PATH%\pixel_shader_voxel.pdb /Fo %BINARIES_PATH%\pixel_shader_voxel.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\pixel_voxel.hlsl
 
 cl %COMPILER_OPTIONS% %SOURCE_PATH%\*.cpp %INCLUDED_LIBRARIES% %LINKER_OPTIONS%
 echo finished building tdca.exe
