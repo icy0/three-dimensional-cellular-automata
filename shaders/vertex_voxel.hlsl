@@ -27,7 +27,9 @@ vertex_shader_output main(vertexbuffer vertex)
 {
     vertex_shader_output output;
 
-    float3 new_position = vertex.position + vertex.transformed_position.xyz;
+    float scale = 1 / pow(2, subdivision_level);
+
+    float3 new_position = (scale * vertex.position) + vertex.transformed_position.xyz;
     float4x4 mvp = mul(model_matrix, mul(view_matrix, projection_matrix));
 
     output.normal = mul(float4(vertex.normal, 0.0f), model_matrix).xyz;

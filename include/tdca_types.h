@@ -71,40 +71,58 @@ struct dx_voxel_vertex
     fvec3 normal;
 };
 
-struct cell
+struct tdca_cell
 {
     enum
     {
-        ALIVE = 0b1,
-        DEAD = 0b01
+        DEAD = 0b0,
+        ALIVE = 0b1
     };
     uint8 state;
 
     // decremented each frame. if 0, cell dies.
-    uint32 lifetime;
-
-    // lifetime on birth.
-    uint32 max_lifetime;
+    uint8 lifetime;
 };
 
-struct life_space
+struct tdca_lifespace
 {
-    // number of cells is then equal to 2 ^ subdivision_count
     uint32 subdivision_count;
+    uint32 cell_count;
 
-    cell* cells;
+    tdca_cell* current_cells;
+    tdca_cell* last_cells;
+};
+
+struct tdca_rule
+{
+    enum neighborhood
+    {
+        MOORE = 0b0,
+        VON_NEUMANN = 0b1
+    };
+    uint8 neighborhood;
+    uint8 necessary_amounts_of_alive_neighbors_for_surviving[26];
+    uint8 necessary_amounts_of_alive_neighbors_for_birth[26];
+    uint8 state_count;
 };
 
 // information structure about the spacial partitioning
 // of our life space
-struct spacial_partitioning_scheme
+struct tdca_spacial_partitioning_scheme
 {
-    enum
+    enum scheme
     {
-        OCTREE = 0b1,
-        // for future extensions
+        BINARY = 0b0,
+        OCTREE = 0b1
     };
     uint8 scheme;
 
     uint32 subdivision_count;
+};
+
+struct tdca
+{
+    tdca_rule rule;
+    tdca_spacial_partitioning_scheme spacial_partitioning_scheme;
+    tdca_lifespace lifespace;
 };
