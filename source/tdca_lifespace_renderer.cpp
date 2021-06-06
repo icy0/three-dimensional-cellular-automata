@@ -149,6 +149,13 @@ void init_lifespace_data()
 
 void render_lifespace()
 {
+    lifespace_constant_buffer constant_buffer = {};
+    DirectX::XMStoreFloat4x4(&constant_buffer.model, DirectX::XMMatrixIdentity());
+    constant_buffer.projection = g_camera->perspective;
+    constant_buffer.view = g_camera->look_at;
+
+    g_device_context->UpdateSubresource(g_dx11_lifespace->constant_buffer, 0, nullptr, &constant_buffer, 0, 0);
+
     rh_dx_logging(g_device_context->VSSetConstantBuffers(0, 1, &g_dx11_lifespace->constant_buffer));
 
     uint32 stride = sizeof(dx_lifespace_vertex);

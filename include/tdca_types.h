@@ -4,8 +4,13 @@
 
 #include "renderhub_types.h"
 
+typedef int32 cell_index;
+
 struct camera
 {
+    DirectX::XMVECTOR eye;
+    DirectX::XMVECTOR focus_point;
+    DirectX::XMVECTOR up;
     DirectX::XMFLOAT4X4 look_at;
     DirectX::XMFLOAT4X4 perspective;
 };
@@ -55,6 +60,7 @@ struct voxel_render_data
     ID3D11VertexShader* vertex_shader;
     ID3D11PixelShader* pixel_shader;
     ID3D11InputLayout* input_layout;
+    voxel_constant_buffer constant_buffer_data;
 
     uint32 index_count;
     uint32 instance_count;
@@ -76,7 +82,8 @@ struct tdca_cell
     enum
     {
         DEAD = 0b0,
-        ALIVE = 0b1
+        ALIVE = 0b1,
+        DYING = 0b10
     };
     uint8 state;
 
@@ -101,8 +108,8 @@ struct tdca_rule
         VON_NEUMANN = 0b1
     };
     uint8 neighborhood;
-    uint8 necessary_amounts_of_alive_neighbors_for_surviving[26];
-    uint8 necessary_amounts_of_alive_neighbors_for_birth[26];
+    uint8 necessary_amounts_of_alive_neighbors_for_surviving[27];
+    uint8 necessary_amounts_of_alive_neighbors_for_birth[27];
     uint8 state_count;
 };
 

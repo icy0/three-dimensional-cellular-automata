@@ -44,13 +44,26 @@ lifespace_render_data* g_dx11_lifespace = new lifespace_render_data{};
 
 void init_camera()
 {
-    DirectX::XMVECTOR eye = DirectX::XMVectorSet(0.5f, 0.5f, 1.0f, 1.0f);
-    DirectX::XMVECTOR focus_point = DirectX::XMVectorSet(0.5f, -0.5f, -0.5f, 1.0f);
-    DirectX::XMVECTOR up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    g_camera->eye = DirectX::XMVectorSet(0.5f, 0.0f, 1.0f, 1.0f);
+    g_camera->focus_point = DirectX::XMVectorSet(0.5f, -0.5f, -0.5f, 1.0f);
+    g_camera->up = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
 
-    DirectX::XMStoreFloat4x4(&g_camera->look_at, DirectX::XMMatrixLookAtRH(eye, focus_point, up));
+    DirectX::XMStoreFloat4x4(&g_camera->look_at, DirectX::XMMatrixLookAtRH(g_camera->eye, g_camera->focus_point, g_camera->up));
     DirectX::XMStoreFloat4x4(&g_camera->perspective, 
-        DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(70.0f), 16.0f/9.0f, 0.1f, 1000.0f));
+        DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(60.0f), 16.0f/9.0f, 0.1f, 1000.0f));
+}
+
+void update_camera(real64 delta_time)
+{
+    DirectX::XMVECTOR rotation_axis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    DirectX::XMMATRIX rotation_matrix = DirectX::XMMatrixRotationAxis(rotation_axis, DirectX::XMConvertToRadians(30.0f * delta_time));
+
+    DirectX::XMVECTOR current_eye_pos = DirectX::XMVectorSet(g_camera->look_at.m[3][0], g_camera->look_at.m[3][1], g_camera->look_at.m[3][2], 1.0f);
+
+    DirectX::XMMATRIX translation_to_cubecenter = DirectX::XMMatrixTranslationFromVector(DirectX::XMVectorSet(0.5f, -0.5f, -0.5f, 1.0f));
+    DirectX::XMMATRIX translation_to_eye_pos = DirectX::XMMatrixTranslationFromVector(DirectX::XMVectorSet(-0.5f, 0.5f, 0.5f, 1.0f));
+
+    DirectX::XMStoreFloat4x4(&g_camera->look_at, translation_to_eye_pos * rotation_matrix * translation_to_cubecenter * DirectX::XMLoadFloat4x4(&g_camera->look_at));
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
@@ -128,12 +141,19 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
         else
         {
+            if(key_was_down(g_keyboard_key_states, KEYBOARD_KEYCODE::KC_R))
+            {
+                init_tdca(&tdca);
+            }
+
             float clear_color[] {0.1f, 0.1f, 0.1f, 1.0f};
             rh_dx_logging(g_device_context->ClearRenderTargetView(g_render_target_view, clear_color));
             rh_dx_logging(g_device_context->ClearDepthStencilView(g_depth_stencil_view, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0));
 
+            update_camera((delta_time.QuadPart / 1'000'000.0f));
+
             current_time = __rdtsc();
-            if(time_when_to_start < current_time)
+            // if(time_when_to_start < current_time)
             {
                 update_tdca(&tdca);
                 update_voxels(&tdca);
