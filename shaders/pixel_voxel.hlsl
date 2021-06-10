@@ -14,7 +14,7 @@ float4 main(pixel_shader_input input) : SV_TARGET
     float3 camera_pos = float3(0.5f, -0.5f, 3.0f);
     float3 light_position = float3(1.5f, -0.5f, 3.0f);
     float3 normal = input.normal;
-    float ambient_strength = 0.1f;
+    float ambient_strength = 0.35f;
     float specular_strength = 0.2f;
 
     float3 ambient_color = ambient_strength * light_color;

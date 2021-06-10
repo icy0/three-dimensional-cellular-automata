@@ -16,11 +16,17 @@ set INTERMEDIATES_PATH=%BUILD_PATH%\intermediates
 set SOURCE_PATH=%CODE_BASE_PATH%\source
 set SHADER_PATH=%CODE_BASE_PATH%\shaders
 
-set INCLUDE_DIRECTORIES=/I %CODE_BASE_PATH%\include\ /I %RENDERHUB_PATH%\include\
-set PREPROCESSOR_DEFINES=/DUNICODE /D_UNICODE /D_WIN32 /D_DEBUG
-set COMPILER_OPTIONS=/Fe%BINARIES_PATH%\%PROJECT_NAME%.exe /Fd%INTERMEDIATES_PATH%\ /Fo%BINARIES_PATH%\ /nologo /MT %INCLUDE_DIRECTORIES% /ZI /EHsc /W3 /std:c++17 %PREPROCESSOR_DEFINES%
-set INCLUDED_LIBRARIES=User32.lib Gdi32.lib Shell32.lib msvcrt.lib %RENDERHUB_PATH%\output\binaries\renderhub_Debug_x64.lib dxguid.lib D3D11.lib DXGI.lib vcruntimed.lib ucrtd.lib
-set LINKER_OPTIONS=/link /NODEFAULTLIB:libcmt.lib /NODEFAULTLIB:msvcrtd.lib /DEBUG
+set CL_INCLUDE_DIRECTORIES=/I %CODE_BASE_PATH%\include\ /I %RENDERHUB_PATH%\include\
+set CL_PREPROCESSOR_DEFINES=/DUNICODE /D_UNICODE /D_WIN32 /D_DEBUG
+set CL_COMPILER_OPTIONS=/Fe%BINARIES_PATH%\%PROJECT_NAME%.exe /Fd%INTERMEDIATES_PATH%\ /Fo%BINARIES_PATH%\ /nologo /MTd %CL_INCLUDE_DIRECTORIES% /Zi /EHsc /W3 /std:c++17 %CL_PREPROCESSOR_DEFINES%
+set CL_INCLUDED_LIBRARIES=User32.lib Gdi32.lib Shell32.lib msvcrt.lib %RENDERHUB_PATH%\output\binaries\renderhub_Debug_x64.lib dxguid.lib D3D11.lib DXGI.lib vcruntimed.lib ucrtd.lib
+set CL_LINKER_OPTIONS=/link /NODEFAULTLIB:libcmtd.lib /NODEFAULTLIB:msvcrtd.lib /DEBUG
+
+set NVCC_CL_INCLUDE_DIRECTORIES=/I%CODE_BASE_PATH%\include\,/I%RENDERHUB_PATH%\include\
+set NVCC_CL_PREPROCESSOR_DEFINES=/DUNICODE,/D_UNICODE,/D_WIN32,/D_DEBUG
+set NVCC_CL_COMPILER_OPTIONS=/Fd%INTERMEDIATES_PATH%\,/nologo,/MTd,%NVCC_CL_INCLUDE_DIRECTORIES%,/Zi,/EHsc,/W3,/std:c++17,%NVCC_CL_PREPROCESSOR_DEFINES%
+set NVCC_CL_INCLUDED_LIBRARIES=--library=User32,Gdi32,Shell32,msvcrt,%RENDERHUB_PATH%\output\binaries\renderhub_Debug_x64,dxguid,D3D11,DXGI,vcruntimed,ucrtd
+set NVCC_CL_LINKER_OPTIONS=/NODEFAULTLIB:libcmtd.lib,/NODEFAULTLIB:msvcrtd.lib,/DEBUG
 
 IF NOT DEFINED VC_COMPILER_INITIALIZED (
 	set /A VC_COMPILER_INITIALIZED=1
@@ -46,5 +52,8 @@ fxc /T ps_5_0 /Fd %BINARIES_PATH%\pixel_shader_lifespace.pdb /Fo %BINARIES_PATH%
 fxc /T vs_5_0 /Fd %BINARIES_PATH%\vertex_shader_voxel.pdb /Fo %BINARIES_PATH%\vertex_shader_voxel.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\vertex_voxel.hlsl
 fxc /T ps_5_0 /Fd %BINARIES_PATH%\pixel_shader_voxel.pdb /Fo %BINARIES_PATH%\pixel_shader_voxel.cso /nologo /Od /Zi /Zpr %SHADER_PATH%\pixel_voxel.hlsl
 
-cl %COMPILER_OPTIONS% %SOURCE_PATH%\*.cpp %INCLUDED_LIBRARIES% %LINKER_OPTIONS%
+nvcc --std=c++17 --debug --device-debug --cudart=static --keep --keep-dir %INTERMEDIATES_PATH%\ --machine=64 --compiler-options=%NVCC_CL_COMPILER_OPTIONS% --linker-options=%NVCC_CL_LINKER_OPTIONS% --output-file=%BINARIES_PATH%\tdca.exe %NVCC_CL_INCLUDED_LIBRARIES% %SOURCE_PATH%\tdca_gpu_device_functions.cu %SOURCE_PATH%\main.cpp %SOURCE_PATH%\tdca_lifespace_renderer.cpp %SOURCE_PATH%\tdca_simulation.cpp %SOURCE_PATH%\tdca_voxel_renderer.cpp
 echo finished building tdca.exe
+
+REM cl %CL_COMPILER_OPTIONS% %SOURCE_PATH%\*.cpp %CL_INCLUDED_LIBRARIES% %CL_LINKER_OPTIONS%
+REM echo finished building tdca.exe

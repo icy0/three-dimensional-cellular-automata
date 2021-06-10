@@ -34,7 +34,7 @@ void update_voxels(tdca* tdca)
 
     char buffer[256];
     snprintf(buffer, 256, "alive cells: %d/%d", alive_cells, tdca->lifespace.cell_count);
-    rh_log_message(buffer);
+    // rh_log_message(buffer);
     
     g_dx11_voxel->instance_count = alive_cells;
 

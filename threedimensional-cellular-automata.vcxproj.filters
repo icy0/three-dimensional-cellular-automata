@@ -18,5 +18,14 @@
     <ClCompile Include="source\main.cpp">
       <Filter>Quelldateien</Filter>
     </ClCompile>
+    <ClCompile Include="source\tdca_lifespace_renderer.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+    <ClCompile Include="source\tdca_voxel_renderer.cpp">
+      <Filter>Quelldateien</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\tdca_simulation.cu" />
   </ItemGroup>
 </Project>

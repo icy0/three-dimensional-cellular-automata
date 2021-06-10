@@ -1,4 +1,4 @@
 #include "tdca_types.h"
 
-void init_tdca(tdca* tdca);
+tdca* init_tdca(tdca* tdca_p);
 void update_tdca(tdca* tdca);

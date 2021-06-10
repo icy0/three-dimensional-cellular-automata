@@ -20,6 +20,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="source\main.cpp" />
+    <ClCompile Include="source\tdca_lifespace_renderer.cpp" />
+    <ClCompile Include="source\tdca_voxel_renderer.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="source\tdca_simulation.cu" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

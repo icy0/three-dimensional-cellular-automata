@@ -1,5 +1,6 @@
 #include <windows.h>
 #include <stdio.h>
+#include <iostream>
 #include <intrin.h>
 #include <dxgidebug.h>
 #include <d3d11.h>
@@ -19,6 +20,8 @@
 #include "tdca_lifespace_renderer.h"
 #include "tdca_voxel_renderer.h"
 #include "tdca_simulation.h"
+
+#include "tdca_gpu_device_functions.h"
 
 uint8* g_keyboard_key_states = new uint8[256];
 mouse_state* g_mouse_state = new mouse_state{};
@@ -83,7 +86,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     g_window_properties->window_width = g_display_properties->horizontal_pixel_count;
     g_window_properties->window_height = g_display_properties->vertical_pixel_count;
 
-    win32_setup_console_io();
+    // win32_setup_console_io();
 
     const wchar_t CLASS_NAME[] = L"resourceloader_windowclass";
 
@@ -104,12 +107,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
     win32_init_directx11();
 
-    tdca tdca = {};
-    init_tdca(&tdca);
+    tdca* tdca = nullptr;
+    tdca = init_tdca(tdca);
 
     init_camera();
     init_lifespace_data();
-    init_voxel_data(&tdca);
+    init_voxel_data(tdca);
 
     MSG msg = {};
 
@@ -143,7 +146,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         {
             if(key_was_down(g_keyboard_key_states, KEYBOARD_KEYCODE::KC_R))
             {
-                init_tdca(&tdca);
+                init_tdca(tdca);
             }
 
             float clear_color[] {0.1f, 0.1f, 0.1f, 1.0f};
@@ -155,13 +158,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             current_time = __rdtsc();
             // if(time_when_to_start < current_time)
             {
-                update_tdca(&tdca);
-                update_voxels(&tdca);
+                update_tdca(tdca);
+                update_voxels(tdca);
                 time_when_to_start = __rdtsc() + (3'600'000'000 * 4);
             }
 
             render_lifespace();
-            render_voxels(&tdca);
+            render_voxels(tdca);
 
             rh_dx_logging(g_swap_chain->Present(0, 0));
 
@@ -186,6 +189,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             update_mouse_input(g_mouse_state);
         }
     }
+
+    cuda_free(tdca);
 
     return 0;
 }
