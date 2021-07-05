@@ -22,92 +22,20 @@ void configuration_445(tdca* tdca);
 
 tdca* init_tdca(tdca* tdca_p)
 {
-    // tdca->lifespace.subdivision_count = 5;
-    // rh_assert(tdca->lifespace.subdivision_count <= (sizeof(tdca->lifespace.cell_count) * 8 / 3));
-
-    // tdca->lifespace.cell_count = 1 << (tdca->lifespace.subdivision_count * 3);
-
-    // tdca->lifespace.current_cells = new tdca_cell[tdca->lifespace.cell_count];
-    // rh_assert(tdca->lifespace.current_cells);
-    // ZeroMemory(tdca->lifespace.current_cells, sizeof(tdca_cell) * tdca->lifespace.cell_count);
-
-    // tdca->lifespace.last_cells = new tdca_cell[tdca->lifespace.cell_count];
-    // rh_assert(tdca->lifespace.last_cells);
-    // ZeroMemory(tdca->lifespace.last_cells, sizeof(tdca_cell) * tdca->lifespace.cell_count);
-
-    // ZeroMemory(&tdca->rule, sizeof(tdca_rule));
-    // tdca->rule.neighborhood = tdca->rule.neighborhood::MOORE;
-
-    // tdca->spacial_partitioning_scheme.scheme = tdca->spacial_partitioning_scheme.scheme::BINARY;
-    // tdca->spacial_partitioning_scheme.subdivision_count = 0;
-
     cuda_init(&tdca_p, sizeof(tdca));
-    configuration_slow_decay(tdca_p);
+    configuration_clouds_1(tdca_p);
     return tdca_p;
+}
+
+void reset_tdca(tdca* tdca)
+{
+    ZeroMemory(tdca->lifespace.last_cells, tdca->lifespace.cell_count * sizeof(tdca_cell));
+    configuration_clouds_1(tdca);
 }
 
 void update_tdca_binary(tdca* tdca)
 {
     cuda_update_current_buffer(tdca);
-    // memcpy(tdca->lifespace.current_cells, tdca->lifespace.last_cells, sizeof(tdca_cell) * tdca->lifespace.cell_count);
-
-    // uint32 partition_count = 1 << tdca->spacial_partitioning_scheme.subdivision_count;
-    // uint32 cells_per_partition = tdca->lifespace.cell_count / partition_count;
-
-    // for(uint32 partition = 0; partition < partition_count; partition++)
-    // {
-    //     cell_index starting_cell = cells_per_partition * partition;
-    //     cell_index ending_cell = (cells_per_partition * partition) + cells_per_partition - 1;
-
-    //     for(cell_index cell = starting_cell; cell < ending_cell + 1; cell++)
-    //     {
-    //         uint32 alive_neighbor_count = 0;
-    //         if(tdca->rule.neighborhood == tdca_rule::MOORE)
-    //         {
-    //             count_alive_neighbors_moore(tdca, cell, &alive_neighbor_count);
-    //         }
-    //         else if(tdca->rule.neighborhood == tdca_rule::VON_NEUMANN)
-    //         {
-    //             count_alive_neighbors_von_neumann(tdca, cell, &alive_neighbor_count);
-    //         }
-
-    //         if(cell_state(tdca, cell) == tdca_cell::ALIVE)
-    //         {
-    //             if(tdca->rule.necessary_amounts_of_alive_neighbors_for_surviving[alive_neighbor_count] == 0)
-    //             {
-    //                 if(tdca->rule.state_count == 2)
-    //                 {
-    //                     tdca->lifespace.current_cells[cell].state = tdca_cell::DEAD;
-    //                     tdca->lifespace.current_cells[cell].lifetime = 0;
-    //                 }
-    //                 else
-    //                 {
-    //                     tdca->lifespace.current_cells[cell].state = tdca_cell::DYING;
-    //                     tdca->lifespace.current_cells[cell].lifetime--;
-    //                 }
-    //             }
-    //         }
-    //         else if(cell_state(tdca, cell) == tdca_cell::DYING)
-    //         {
-    //             if(tdca->lifespace.last_cells[cell].lifetime == 0)
-    //             {
-    //                 tdca->lifespace.current_cells[cell].state = tdca_cell::DEAD;
-    //             }
-    //             else
-    //             {
-    //                 tdca->lifespace.current_cells[cell].lifetime--;
-    //             }
-    //         }
-    //         else if(cell_state(tdca, cell) == tdca_cell::DEAD)
-    //         {
-    //             if(tdca->rule.necessary_amounts_of_alive_neighbors_for_birth[alive_neighbor_count] == 1)
-    //             {
-    //                 tdca->lifespace.current_cells[cell].state = tdca_cell::ALIVE;
-    //                 tdca->lifespace.current_cells[cell].lifetime = tdca->rule.state_count - 1;
-    //             }
-    //         }
-    //     }
-    // }
 }
 
 void update_tdca_octree(tdca* tdca)
@@ -121,7 +49,6 @@ void update_tdca(tdca* tdca)
     {
         case(tdca_spacial_partitioning_scheme::BINARY):
         {
-            // update_tdca_binary<<<1,1>>>(tdca);
             update_tdca_binary(tdca);
             break;
         }
@@ -136,11 +63,13 @@ void update_tdca(tdca* tdca)
 void configuration_clouds_1(tdca* tdca)
 {
     tdca->rule.state_count = 2;
+
     
-    for(int32 cell = 0; cell < tdca->lifespace.cell_count; cell++)
+    for(int32 cell = 0; cell < (int32) tdca->lifespace.cell_count; cell++)
     {
+        rh_assert(cell < 0xFFFFFFFF / 2);
         real32 random_number = (real32) rand() / (real32) RAND_MAX;
-        if(random_number > 0.54f)
+        if(random_number > 0.48f)
         {
             tdca->lifespace.last_cells[cell].state = tdca_cell::ALIVE;
             tdca->lifespace.last_cells[cell].lifetime = tdca->rule.state_count - 1;
@@ -173,8 +102,9 @@ void configuration_clouds_2(tdca* tdca)
 {
     tdca->rule.state_count = 2;
     
-    for(int32 cell = 0; cell < tdca->lifespace.cell_count; cell++)
+    for(int32 cell = 0; cell < (int32) tdca->lifespace.cell_count; cell++)
     {
+        rh_assert(cell < 0xFFFFFFFF / 2);
         real32 random_number = (real32) rand() / (real32) RAND_MAX;
         if(random_number > 0.35f)
         {
@@ -206,8 +136,9 @@ void configuration_clouds_own1(tdca* tdca)
 {
     tdca->rule.state_count = 2;
     
-    for(int32 cell = 0; cell < tdca->lifespace.cell_count; cell++)
+    for(int32 cell = 0; cell < (real32) tdca->lifespace.cell_count; cell++)
     {
+        rh_assert(cell < 0xFFFFFFFF / 2);
         real32 random_number = (real32) rand() / (real32) RAND_MAX;
         // if(random_number > 0.05f)
         if(random_number > 0.61f)
@@ -243,10 +174,11 @@ void configuration_slow_decay(tdca* tdca)
 {
     tdca->rule.state_count = 5;
     
-    for(int32 cell = 0; cell < tdca->lifespace.cell_count; cell++)
+    for(int32 cell = 0; cell < (real32) tdca->lifespace.cell_count; cell++)
     {
+        rh_assert(cell < 0xFFFFFFFF / 2);
         real32 random_number = (real32) rand() / (real32) RAND_MAX;
-        if(random_number > 0.70f)
+        if(random_number > 0.71f)
         {
             tdca->lifespace.last_cells[cell].state = tdca_cell::ALIVE;
             tdca->lifespace.last_cells[cell].lifetime = tdca->rule.state_count - 1;
@@ -292,8 +224,9 @@ void configuration_clouds_own2(tdca* tdca)
 {
     tdca->rule.state_count = 2;
     
-    for(int32 cell = 0; cell < tdca->lifespace.cell_count; cell++)
+    for(int32 cell = 0; cell < (real32) tdca->lifespace.cell_count; cell++)
     {
+        rh_assert(cell < 0xFFFFFFFF / 2);
         real32 random_number = (real32) rand() / (real32) RAND_MAX;
         if(random_number > 0.05f)
         {
@@ -408,170 +341,60 @@ void configuration_445(tdca* tdca)
 
     cell_index cube_middle = (tdca->lifespace.cell_count / 2) - (cells_per_slice / 2) - (cells_per_axis / 2);
 
-    tdca->lifespace.last_cells[cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cube_middle].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[cube_middle].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[cube_middle].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[cube_middle + 1].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cube_middle - 1].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[cube_middle - 1].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[cube_middle - 1].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[cube_middle + 2].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cube_middle - 2].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[cube_middle - 2].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[cube_middle - 2].lifetime = tdca->rule.state_count - 1;
 
     tdca->lifespace.last_cells[cells_per_slice + cube_middle].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[cells_per_slice + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_slice + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_slice + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[cells_per_slice + cube_middle + 1].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[cells_per_slice + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[cells_per_slice + cube_middle - 1].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[cells_per_slice + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[cells_per_slice + cube_middle - 2].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[cells_per_slice + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
 
     tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle - 1].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle + 2].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle - 2].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[(2 * cells_per_slice) + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
 
     tdca->lifespace.last_cells[-cells_per_slice + cube_middle].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[-cells_per_slice + cube_middle].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[-cells_per_slice + cube_middle + 1].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[-cells_per_slice + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[-cells_per_slice + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[-cells_per_slice + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[-cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[-cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[-cells_per_slice + cube_middle - 1].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[-cells_per_slice + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[-cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[-cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[-cells_per_slice + cube_middle - 2].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[-cells_per_slice + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
 
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
+    // tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
+    // tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle - 1].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle + 2].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle - 2].state = tdca_cell::ALIVE;
     tdca->lifespace.last_cells[-(2 * cells_per_slice) + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - cells_per_slice + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - (2 * cells_per_slice) + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -cells_per_slice + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[cells_per_axis - -(2 * cells_per_slice) + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - cells_per_slice + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - (2 * cells_per_slice) + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -cells_per_slice + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
-
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle + 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle + 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle - 1].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle - 1].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle + 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle + 2].lifetime = tdca->rule.state_count - 1;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle - 2].state = tdca_cell::ALIVE;
-    tdca->lifespace.last_cells[(2 * cells_per_axis) - -(2 * cells_per_slice) + cube_middle - 2].lifetime = tdca->rule.state_count - 1;
 
     tdca->rule.necessary_amounts_of_alive_neighbors_for_surviving[4] = 1;
 

@@ -4,9 +4,7 @@ cbuffer per_frame : register(b0)
     float4x4 view_matrix;
     float4x4 projection_matrix;
     int subdivision_level;
-    float unused1;
-    float unused2;
-    float unused3;
+    float3 camera_pos;
 }
 
 struct vertexbuffer
@@ -21,6 +19,7 @@ struct vertex_shader_output
     float3 object_color : COLOR;
     nointerpolation float3 normal : NORMAL;
     float4 v_position : POSITION0;
+    float3 camera_pos : POSITION1;
     float4 position : SV_POSITION;
 };
 
@@ -40,6 +39,7 @@ vertex_shader_output main(vertexbuffer vertex)
     output.object_color = float3((distance_to_center * 10) % 1.0f, (distance_to_center * 5) % 1.0f, 1.0f);
 
     output.position = mul(float4(new_position, 1.0f), mvp);
+    output.camera_pos = float3(view_matrix._m03, view_matrix._m13, view_matrix._m23);
 
     return output;
 }

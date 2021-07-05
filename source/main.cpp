@@ -1,3 +1,4 @@
+// windows and crt
 #include <windows.h>
 #include <stdio.h>
 #include <iostream>
@@ -6,21 +7,25 @@
 #include <d3d11.h>
 #include <directxmath.h>
 
+// renderhub platform-agnostic
 #include "renderhub_types.h"
 #include "renderhub_input.h"
 #include "renderhub_logging.h"
 #include "renderhub_assert.h"
 #include "renderhub_resourceloader.h"
 
+// renderhub windows-dx11-specific
 #include "win_renderhub_resourceloader.h"
 #include "win_renderhub_window_settings.h"
 #include "dx11win_renderhub_renderer.h"
 
+// three-dimensional-cellular-automata 
 #include "tdca_types.h"
 #include "tdca_lifespace_renderer.h"
 #include "tdca_voxel_renderer.h"
 #include "tdca_simulation.h"
 
+// three-dimensional-cellular-automata cuda
 #include "tdca_gpu_device_functions.h"
 
 uint8* g_keyboard_key_states = new uint8[256];
@@ -42,7 +47,7 @@ D3D11_VIEWPORT* g_viewport = new D3D11_VIEWPORT{};
 struct IDXGIInfoQueue* g_info_queue = nullptr;
 
 camera* g_camera = new camera{};
-voxel_render_data* g_dx11_voxel = new voxel_render_data{};
+voxel_render_data* g_dx11_voxel = nullptr;
 lifespace_render_data* g_dx11_lifespace = new lifespace_render_data{};
 
 void init_camera()
@@ -59,7 +64,7 @@ void init_camera()
 void update_camera(real64 delta_time)
 {
     DirectX::XMVECTOR rotation_axis = DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    DirectX::XMMATRIX rotation_matrix = DirectX::XMMatrixRotationAxis(rotation_axis, DirectX::XMConvertToRadians(30.0f * delta_time));
+    DirectX::XMMATRIX rotation_matrix = DirectX::XMMatrixRotationAxis(rotation_axis, DirectX::XMConvertToRadians(30.0f * (real32) delta_time));
 
     DirectX::XMVECTOR current_eye_pos = DirectX::XMVectorSet(g_camera->look_at.m[3][0], g_camera->look_at.m[3][1], g_camera->look_at.m[3][2], 1.0f);
 
@@ -67,10 +72,14 @@ void update_camera(real64 delta_time)
     DirectX::XMMATRIX translation_to_eye_pos = DirectX::XMMatrixTranslationFromVector(DirectX::XMVectorSet(-0.5f, 0.5f, 0.5f, 1.0f));
 
     DirectX::XMStoreFloat4x4(&g_camera->look_at, translation_to_eye_pos * rotation_matrix * translation_to_cubecenter * DirectX::XMLoadFloat4x4(&g_camera->look_at));
+
+    DirectX::XMFLOAT3 new_eye_pos = DirectX::XMFLOAT3{g_camera->look_at.m[3][0], g_camera->look_at.m[3][1], g_camera->look_at.m[3][2]};
+    g_camera->eye = DirectX::XMLoadFloat3(&new_eye_pos);
 }
 
 int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow)
 {
+    cuda_init_voxel_render_data();
     rh_assert(g_keyboard_key_states);
     rh_assert(g_mouse_state);
     rh_assert(g_display_properties);
@@ -113,6 +122,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     init_camera();
     init_lifespace_data();
     init_voxel_data(tdca);
+    cuda_link_instance_buffer();
 
     MSG msg = {};
 
@@ -132,8 +142,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     uint64 delta_cycle_count = 0;
     uint64 curr_cycle_count = 0;
 
-    uint64 current_time = __rdtsc();
-    uint64 time_when_to_start = __rdtsc() + (3'600'000'000 * 4);
+    uint64 iterations = 0;
 
     while (msg.message != WM_QUIT)
     {
@@ -144,9 +153,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
         }
         else
         {
-            if(key_was_down(g_keyboard_key_states, KEYBOARD_KEYCODE::KC_R))
+            if(key_down(g_keyboard_key_states, KEYBOARD_KEYCODE::KC_R))
             {
-                init_tdca(tdca);
+                reset_tdca(tdca);
             }
 
             float clear_color[] {0.1f, 0.1f, 0.1f, 1.0f};
@@ -155,12 +164,10 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
             update_camera((delta_time.QuadPart / 1'000'000.0f));
 
-            current_time = __rdtsc();
-            // if(time_when_to_start < current_time)
+            if(iterations < 30)
             {
                 update_tdca(tdca);
-                update_voxels(tdca);
-                time_when_to_start = __rdtsc() + (3'600'000'000 * 4);
+                cuda_update_voxels(tdca);
             }
 
             render_lifespace();
@@ -182,11 +189,13 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
             
             char buffer[256];
             snprintf(buffer, 256, "fps: %f", fps);
-            // rh_log_message(buffer);
+            //rh_log_message(buffer);
 
             // after update and render
             update_keyboard_input(g_keyboard_key_states);
             update_mouse_input(g_mouse_state);
+
+            iterations++;
         }
     }
 

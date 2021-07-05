@@ -2,6 +2,14 @@
 #include <cstdlib>
 
 #include "tdca_types.h"
+#include "tdca_globals.h"
+
+#include <cuda_runtime_api.h>
+#include <cuda_d3d11_interop.h>
+
+cudaGraphicsResource* g_graphics_resource;
+
+voxel_instance_transforms* g_instances;
 
 __device__ unsigned int cell_state(tdca* tdca, int cell)
 {
@@ -200,29 +208,83 @@ void cuda_update_current_buffer(tdca* tdca)
 
     update_lifespace_partition<<<partition_count,1024>>>(tdca);
     int error_code = cudaDeviceSynchronize();
-    int dummy = 42;
 }
 
 void cuda_init(tdca** tdca, unsigned int tdca_size_in_bytes)
 {
     cudaMallocManaged(tdca, tdca_size_in_bytes);
-    (*tdca)->lifespace.subdivision_count = 6;
+    (*tdca)->lifespace.subdivision_count = 8;
     (*tdca)->lifespace.cell_count = 1 << ((*tdca)->lifespace.subdivision_count * 3);
 
     cudaMallocManaged(&(*tdca)->lifespace.current_cells, (*tdca)->lifespace.cell_count * sizeof(tdca_cell));
-    // cudaMemset(&tdca->lifespace.current_cells, 0, tdca->lifespace.cell_count * sizeof(tdca_cell));
+    cudaMemset(&(*tdca)->lifespace.current_cells, 0, (*tdca)->lifespace.cell_count * sizeof(tdca_cell));
 
     cudaMallocManaged(&(*tdca)->lifespace.last_cells, (*tdca)->lifespace.cell_count * sizeof(tdca_cell));
-    // cudaMemset(&tdca->lifespace.last_cells, 0, tdca->lifespace.cell_count * sizeof(tdca_cell));
+    cudaMemset(&(*tdca)->lifespace.last_cells, 0, (*tdca)->lifespace.cell_count * sizeof(tdca_cell));
 
     (*tdca)->rule.neighborhood = (*tdca)->rule.neighborhood::MOORE;
 
     (*tdca)->spacial_partitioning_scheme.scheme = (*tdca)->spacial_partitioning_scheme.scheme::BINARY;
-    (*tdca)->spacial_partitioning_scheme.subdivision_count = 6;
+    (*tdca)->spacial_partitioning_scheme.subdivision_count = 11;
+
+    cudaMallocManaged(&g_instances, (*tdca)->lifespace.cell_count * sizeof(voxel_instance_transforms));
+    cudaMemset(g_instances, 0, (*tdca)->lifespace.cell_count * sizeof(voxel_instance_transforms));
 }
 
 void cuda_free(tdca* tdca)
 {
     cudaFree(tdca->lifespace.current_cells);
     cudaFree(tdca->lifespace.last_cells);
+    cudaFree(tdca);
+    cudaFree(g_dx11_voxel);
+    cudaFree(g_instances);
+}
+
+DirectX::XMVECTOR calculate_cell_position_vector(tdca* tdca, cell_index cell)
+{
+    cell_index cells_per_axis = 1 << tdca->lifespace.subdivision_count;
+    cell_index cells_per_slice = 1 << (tdca->lifespace.subdivision_count * 2);
+    
+    real32 x = ((real32) (cell % cells_per_axis)) / (real32) cells_per_axis;
+    real32 y = -((real32) (((int32) ((real32) cell / cells_per_axis)) % (cells_per_slice / cells_per_axis)) / (real32) cells_per_axis);
+    real32 z = -((real32) ((int32) ((real32) cell / cells_per_slice)) / (real32) cells_per_axis);
+
+    return DirectX::XMVectorSet(x, y, z, 1.0f);
+}
+
+void cuda_update_voxels(tdca* tdca)
+{
+    cell_index alive_cell_counter = 0;
+    for(cell_index cell = 0; cell < (real32) tdca->lifespace.cell_count; cell++)
+    {
+        if(tdca->lifespace.current_cells[cell].state == tdca_cell::ALIVE || tdca->lifespace.current_cells[cell].state == tdca_cell::DYING)
+        {
+            g_instances[alive_cell_counter].translation = calculate_cell_position_vector(tdca, cell);
+            alive_cell_counter++;
+        }
+    }
+    g_dx11_voxel->instance_count = alive_cell_counter;
+
+    cudaGraphicsMapResources(1, &g_graphics_resource, 0);
+
+    voxel_instance_transforms* instance_buffer;
+    size_t instance_buffer_size;
+    cudaGraphicsResourceGetMappedPointer((void **) &instance_buffer, &instance_buffer_size, g_graphics_resource);
+
+    cudaMemcpy(instance_buffer, g_instances, sizeof(voxel_instance_transforms) * alive_cell_counter, cudaMemcpyDeviceToDevice);
+
+    cudaGraphicsUnmapResources(1, &g_graphics_resource, 0);
+
+    cudaMemcpy(tdca->lifespace.last_cells, tdca->lifespace.current_cells, sizeof(tdca_cell) * tdca->lifespace.cell_count, cudaMemcpyDeviceToDevice);
+    cudaMemset(tdca->lifespace.current_cells, 0, sizeof(tdca_cell) * tdca->lifespace.cell_count);
+}
+
+void cuda_init_voxel_render_data()
+{
+    cudaMallocManaged(&g_dx11_voxel, sizeof(voxel_render_data));
+}
+
+void cuda_link_instance_buffer()
+{
+    cudaGraphicsD3D11RegisterResource(&g_graphics_resource, g_dx11_voxel->instance_buffer, 0);
 }

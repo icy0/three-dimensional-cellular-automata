@@ -9,61 +9,7 @@
 #include "tdca_types.h"
 #include "tdca_globals.h"
 
-DirectX::XMVECTOR calculate_cell_position_vector(tdca* tdca, cell_index cell)
-{
-    cell_index cells_per_axis = 1 << tdca->lifespace.subdivision_count;
-    cell_index cells_per_slice = 1 << (tdca->lifespace.subdivision_count * 2);
-    
-    real32 x = ((real32) (cell % cells_per_axis)) / (real32) cells_per_axis;
-    real32 y = -((real32) (((int32) ((real32) cell / cells_per_axis)) % (cells_per_slice / cells_per_axis)) / (real32) cells_per_axis);
-    real32 z = -((real32) ((int32) ((real32) cell / cells_per_slice)) / (real32) cells_per_axis);
-
-    return DirectX::XMVectorSet(x, y, z, 1.0f);
-}
-
-void update_voxels(tdca* tdca)
-{
-    cell_index alive_cells = 0;
-    for(cell_index cell = 0; cell < tdca->lifespace.cell_count; cell++)
-    {
-        if(tdca->lifespace.current_cells[cell].state == tdca_cell::ALIVE || tdca->lifespace.current_cells[cell].state == tdca_cell::DYING)
-        {
-            alive_cells++;
-        }
-    }
-
-    char buffer[256];
-    snprintf(buffer, 256, "alive cells: %d/%d", alive_cells, tdca->lifespace.cell_count);
-    // rh_log_message(buffer);
-    
-    g_dx11_voxel->instance_count = alive_cells;
-
-    // TODO this is too slow
-    voxel_instance_transforms* instances = new voxel_instance_transforms[alive_cells];
-
-    cell_index alive_cell_counter = 0;
-    for(cell_index cell = 0; cell < tdca->lifespace.cell_count; cell++)
-    {
-        if(tdca->lifespace.current_cells[cell].state == tdca_cell::ALIVE || tdca->lifespace.current_cells[cell].state == tdca_cell::DYING)
-        {
-            instances[alive_cell_counter].translation = calculate_cell_position_vector(tdca, cell);
-            alive_cell_counter++;
-        }
-    }
-
-    D3D11_MAPPED_SUBRESOURCE instance_data = {};
-    rh_dx_logging(g_device_context->Map(g_dx11_voxel->instance_buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &instance_data));
-    rh_assert(instance_data.pData);
-
-    memcpy(instance_data.pData, instances, sizeof(voxel_instance_transforms) * alive_cells);
-
-    rh_dx_logging(g_device_context->Unmap(g_dx11_voxel->instance_buffer, 0));
-
-    delete[] instances;
-
-    memcpy(tdca->lifespace.last_cells, tdca->lifespace.current_cells, sizeof(tdca_cell) * tdca->lifespace.cell_count);
-    ZeroMemory(tdca->lifespace.current_cells, sizeof(tdca_cell) * tdca->lifespace.cell_count);
-}
+#include "tdca_gpu_device_functions.h"
 
 void init_voxel_data(tdca* tdca)
 {
@@ -77,6 +23,7 @@ void init_voxel_data(tdca* tdca)
         DirectX::XMMatrixPerspectiveFovRH(DirectX::XMConvertToRadians(70.0f), 16.0f/9.0f, 0.1f, 1000.0f));
 
     g_dx11_voxel->constant_buffer_data.subdivision_level = tdca->lifespace.subdivision_count;
+    DirectX::XMStoreFloat3(&g_dx11_voxel->constant_buffer_data.camera_pos, g_camera->eye);
 
     dx_voxel_vertex vertices[]
     {
@@ -258,6 +205,7 @@ void render_voxels(tdca* tdca)
     DirectX::XMStoreFloat4x4(&g_dx11_voxel->constant_buffer_data.model, DirectX::XMMatrixIdentity());
     g_dx11_voxel->constant_buffer_data.projection = g_camera->perspective;
     g_dx11_voxel->constant_buffer_data.view = g_camera->look_at;
+    DirectX::XMStoreFloat3(&g_dx11_voxel->constant_buffer_data.camera_pos, g_camera->eye);
 
     g_device_context->UpdateSubresource(g_dx11_voxel->constant_buffer, 0, nullptr, &g_dx11_voxel->constant_buffer_data, 0, 0);
     rh_dx_logging(g_device_context->VSSetConstantBuffers(0, 1, &g_dx11_voxel->constant_buffer));

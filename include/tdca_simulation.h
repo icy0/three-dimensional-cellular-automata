@@ -2,3 +2,4 @@
 
 tdca* init_tdca(tdca* tdca_p);
 void update_tdca(tdca* tdca);
+void reset_tdca(tdca* tdca);

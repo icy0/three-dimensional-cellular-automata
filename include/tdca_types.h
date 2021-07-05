@@ -28,9 +28,7 @@ struct voxel_constant_buffer
     DirectX::XMFLOAT4X4 view;
     DirectX::XMFLOAT4X4 projection;
     int32 subdivision_level;
-    real32 unused1;
-    real32 unused2;
-    real32 unused3;
+    DirectX::XMFLOAT3 camera_pos;
 };
 
 struct voxel_instance_transforms
