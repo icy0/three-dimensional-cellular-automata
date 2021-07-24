@@ -11,7 +11,7 @@ cudaGraphicsResource* g_graphics_resource;
 
 voxel_instance_transforms* g_instances;
 
-__device__ unsigned int cell_state(tdca* tdca, int cell)
+__device__ unsigned int cell_state(tdca* tdca, cell_index cell)
 {
     if(cell < 0 || cell > tdca->lifespace.cell_count)
     {
@@ -23,18 +23,18 @@ __device__ unsigned int cell_state(tdca* tdca, int cell)
     }
 }
 
-__device__ bool is_in_bounds_relative(tdca* tdca, int origin, int target)
+__device__ bool is_in_bounds_relative(tdca* tdca, cell_index origin, cell_index target)
 {
     int cells_per_axis = 1 << tdca->lifespace.subdivision_count;
     int cells_per_slice = 1 << (tdca->lifespace.subdivision_count * 2);
 
     // the row of cells the current cell index resides in
-    int row_start_cell_inclusive = origin - (origin % cells_per_axis);
-    int row_end_cell_inclusive = row_start_cell_inclusive + cells_per_axis - 1;
+    cell_index row_start_cell_inclusive = origin - (origin % cells_per_axis);
+    cell_index row_end_cell_inclusive = row_start_cell_inclusive + cells_per_axis - 1;
 
     // the vertical slice of cells the current cell resides in
-    int slice_start_cell_inclusive = origin - (origin % cells_per_slice);
-    int slice_end_cell_inclusive = slice_start_cell_inclusive + cells_per_slice - 1;
+    cell_index slice_start_cell_inclusive = origin - (origin % cells_per_slice);
+    cell_index slice_end_cell_inclusive = slice_start_cell_inclusive + cells_per_slice - 1;
 
     int difference =  target - origin;
 
@@ -90,7 +90,7 @@ __device__ bool is_in_bounds_relative(tdca* tdca, int origin, int target)
     return true;
 }
 
-__device__ void count_alive_neighbors_moore(tdca* tdca, int cell, unsigned int* alive_neighbors_count)
+__device__ void count_alive_neighbors_moore(tdca* tdca, cell_index cell, unsigned int* alive_neighbors_count)
 {
     int cells_per_axis = 1 << tdca->lifespace.subdivision_count;
     int cells_per_slice = 1 << (tdca->lifespace.subdivision_count * 2);
@@ -125,7 +125,7 @@ __device__ void count_alive_neighbors_moore(tdca* tdca, int cell, unsigned int* 
     if(is_in_bounds_relative(tdca, cell, cell + cells_per_slice + cells_per_axis + 1))    *alive_neighbors_count += (cell_state(tdca, cell + cells_per_slice + cells_per_axis + 1) > 0 ? 1 : 0);
 }
 
-__device__ void count_alive_neighbors_von_neumann(tdca* tdca, int cell, unsigned int* alive_neighbors_count)
+__device__ void count_alive_neighbors_von_neumann(tdca* tdca, cell_index cell, unsigned int* alive_neighbors_count)
 {
     int cells_per_axis = 1 << tdca->lifespace.subdivision_count;
     int cells_per_slice = 1 << (tdca->lifespace.subdivision_count * 2);
@@ -147,19 +147,19 @@ __global__ void update_lifespace_partition(tdca* tdca)
 
     int cells_per_thread = tdca->lifespace.cell_count / (number_of_threads_per_block * number_of_blocks_per_grid);
     
-    int starting_cell = (block_id * (cells_per_thread * number_of_threads_per_block)) + (thread_id * cells_per_thread);
-    int ending_cell = starting_cell + cells_per_thread - 1;
+    cell_index starting_cell = (block_id * (cells_per_thread * number_of_threads_per_block)) + (thread_id * cells_per_thread);
+    cell_index ending_cell = starting_cell + cells_per_thread - 1;
     
-    for(int cell = starting_cell; cell < ending_cell + 1; cell++)
+    for(cell_index cell = starting_cell; cell < ending_cell + 1; cell++)
     {
         unsigned int alive_neighbor_count = 0;
         if(tdca->rule.neighborhood == tdca_rule::MOORE)
         {
-            count_alive_neighbors_moore(tdca, cell, &alive_neighbor_count); // make device function
+            count_alive_neighbors_moore(tdca, cell, &alive_neighbor_count);
         }
         else if(tdca->rule.neighborhood == tdca_rule::VON_NEUMANN)
         {
-            count_alive_neighbors_von_neumann(tdca, cell, &alive_neighbor_count); // make device function
+            count_alive_neighbors_von_neumann(tdca, cell, &alive_neighbor_count);
         }
 
         if(cell_state(tdca, cell) == tdca_cell::ALIVE)
@@ -213,7 +213,10 @@ void cuda_update_current_buffer(tdca* tdca)
 void cuda_init(tdca** tdca, unsigned int tdca_size_in_bytes)
 {
     cudaMallocManaged(tdca, tdca_size_in_bytes);
-    (*tdca)->lifespace.subdivision_count = 8;
+    (*tdca)->lifespace.subdivision_count = 6;
+    // (*tdca)->lifespace.subdivision_count = 7;
+    // (*tdca)->lifespace.subdivision_count = 8;
+    // (*tdca)->lifespace.subdivision_count = 9;
     (*tdca)->lifespace.cell_count = 1 << ((*tdca)->lifespace.subdivision_count * 3);
 
     cudaMallocManaged(&(*tdca)->lifespace.current_cells, (*tdca)->lifespace.cell_count * sizeof(tdca_cell));
@@ -225,7 +228,10 @@ void cuda_init(tdca** tdca, unsigned int tdca_size_in_bytes)
     (*tdca)->rule.neighborhood = (*tdca)->rule.neighborhood::MOORE;
 
     (*tdca)->spacial_partitioning_scheme.scheme = (*tdca)->spacial_partitioning_scheme.scheme::BINARY;
-    (*tdca)->spacial_partitioning_scheme.subdivision_count = 11;
+    (*tdca)->spacial_partitioning_scheme.subdivision_count = 8;
+    // (*tdca)->spacial_partitioning_scheme.subdivision_count = 11;
+    // (*tdca)->spacial_partitioning_scheme.subdivision_count = 14;
+    // (*tdca)->spacial_partitioning_scheme.subdivision_count = 17;
 
     cudaMallocManaged(&g_instances, (*tdca)->lifespace.cell_count * sizeof(voxel_instance_transforms));
     cudaMemset(g_instances, 0, (*tdca)->lifespace.cell_count * sizeof(voxel_instance_transforms));
