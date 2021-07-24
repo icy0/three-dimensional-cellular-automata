@@ -1,0 +1,15 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "..\\renderhub"
+		}
+	],
+	"settings": {
+		"files.associations": {
+			"xlocale": "cpp"
+		}
+	}
+}
