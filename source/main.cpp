@@ -95,7 +95,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     g_window_properties->window_width = g_display_properties->horizontal_pixel_count;
     g_window_properties->window_height = g_display_properties->vertical_pixel_count;
 
-    // win32_setup_console_io();
+    win32_setup_console_io();
 
     const wchar_t CLASS_NAME[] = L"resourceloader_windowclass";
 
@@ -107,7 +107,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     rh_assert(RegisterClass(&wc));
 
     HWND hwnd = CreateWindowEx(0, CLASS_NAME, L"Threedimensional Cellular Automata", WS_OVERLAPPEDWINDOW,
-        0, 0, 1920, 1080, NULL, NULL, hInstance, NULL);
+        0, 0, 2560, 1440, NULL, NULL, hInstance, NULL);
     rh_assert(hwnd);
 
     ShowWindow(hwnd, nCmdShow);
@@ -164,7 +164,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
             update_camera((delta_time.QuadPart / 1'000'000.0f));
 
-            if(iterations < 30)
+            // if(iterations < 30)
             {
                 update_tdca(tdca);
                 cuda_update_voxels(tdca);
