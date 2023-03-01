@@ -17,8 +17,8 @@
         "includePath":
         [
             "${projectIncludePath}",
-            "C:/Development/three-dimensional-cellular-automata/include", 
-            "C:/Development/renderhub/include"
+            "${workspaceFolder}/dependencies/renderhub/include",
+            "C:/Development/three-dimensional-cellular-automata/include"
         ],
         "defines": ["UNICODE", "_UNICODE", "_DEBUG", "_WIN32"],
         // "forcedInclude": [""],

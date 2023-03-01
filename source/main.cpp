@@ -107,7 +107,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
     rh_assert(RegisterClass(&wc));
 
     HWND hwnd = CreateWindowEx(0, CLASS_NAME, L"Threedimensional Cellular Automata", WS_OVERLAPPEDWINDOW,
-        0, 0, 2560, 1440, NULL, NULL, hInstance, NULL);
+        0, 0, 1600, 900, NULL, NULL, hInstance, NULL);
     rh_assert(hwnd);
 
     ShowWindow(hwnd, nCmdShow);
